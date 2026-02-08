@@ -1,4 +1,4 @@
-import gsap from 'gsap';
+import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.7/index.js';
 
 // ===== 定数 =====
   const DEFAULT_ITEM_HEIGHT = 64;
