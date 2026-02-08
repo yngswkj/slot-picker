@@ -43,6 +43,7 @@
   let lastTime = 0;
   let animFrameId = null;
   let isReach = false;
+  let isReachGenuine = false;
   let reelStopTimers = [];
   let reelRepeats = BASE_REPEATS;
   let layout = {
@@ -61,6 +62,7 @@
   const itemListEl = document.getElementById('item-list');
   const startBtn = document.getElementById('start-btn');
   const resetBtnEl = document.getElementById('reset-btn');
+  const slotOverlayEl = document.getElementById('slot-overlay');
   const slotMachineEl = document.getElementById('slot-machine');
   const modalResultEl = document.getElementById('modal-result');
   const modalCloseEl = document.getElementById('modal-close');
@@ -126,21 +128,55 @@
       osc.stop(this.ctx.currentTime + 0.6);
     },
 
+    createDelay(wetLevel = 0.3, delayTime = 0.18, feedback = 0.35) {
+      const delay = this.ctx.createDelay();
+      delay.delayTime.value = delayTime;
+      const feedbackGain = this.ctx.createGain();
+      feedbackGain.gain.value = feedback;
+      const wetGain = this.ctx.createGain();
+      wetGain.gain.value = wetLevel;
+      delay.connect(feedbackGain);
+      feedbackGain.connect(delay);
+      delay.connect(wetGain);
+      wetGain.connect(this.ctx.destination);
+      return delay;
+    },
+
     playWinFanfare() {
       this.init();
+      const delay = this.createDelay(0.25, 0.2, 0.3);
       const notes = [523, 659, 784, 1047];
       notes.forEach((freq, i) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sine';
         osc.frequency.value = freq;
-        const startTime = this.ctx.currentTime + i * 0.12;
+        const startTime = this.ctx.currentTime + i * 0.15;
         gain.gain.setValueAtTime(0, startTime);
         gain.gain.linearRampToValueAtTime(0.2, startTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.8);
-        osc.connect(gain).connect(this.ctx.destination);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        gain.connect(delay);
         osc.start(startTime);
-        osc.stop(startTime + 0.8);
+        osc.stop(startTime + 1.2);
+      });
+      // ハーモニクス（オクターブ上を薄く重ねる）
+      const harmNotes = [1047, 1319];
+      harmNotes.forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        const startTime = this.ctx.currentTime + 0.45 + i * 0.12;
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.08, startTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 1.0);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        gain.connect(delay);
+        osc.start(startTime);
+        osc.stop(startTime + 1.0);
       });
     },
   };
@@ -162,7 +198,8 @@
       this.canvas.height = window.innerHeight;
       this.particles = [];
 
-      for (let i = 0; i < 100; i++) {
+      const shapes = ['rect', 'circle', 'triangle', 'star'];
+      for (let i = 0; i < 120; i++) {
         this.particles.push({
           x: Math.random() * this.canvas.width,
           y: -20 - Math.random() * 200,
@@ -173,6 +210,7 @@
           rotSpeed: (Math.random() - 0.5) * 10,
           color: this.colors[Math.floor(Math.random() * this.colors.length)],
           opacity: 1,
+          shape: shapes[Math.floor(Math.random() * shapes.length)],
         });
       }
       this.running = true;
@@ -196,13 +234,45 @@
         this.ctx.rotate((p.rotation * Math.PI) / 180);
         this.ctx.globalAlpha = p.opacity;
         this.ctx.fillStyle = p.color;
-        this.ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        this.drawShape(p.shape, p.size);
         this.ctx.restore();
       }
       if (alive) {
         requestAnimationFrame(() => this.animate());
       } else {
         this.stop();
+      }
+    }
+
+    drawShape(shape, size) {
+      const half = size / 2;
+      switch (shape) {
+        case 'circle':
+          this.ctx.beginPath();
+          this.ctx.arc(0, 0, half, 0, Math.PI * 2);
+          this.ctx.fill();
+          break;
+        case 'triangle':
+          this.ctx.beginPath();
+          this.ctx.moveTo(0, -half);
+          this.ctx.lineTo(half, half);
+          this.ctx.lineTo(-half, half);
+          this.ctx.closePath();
+          this.ctx.fill();
+          break;
+        case 'star': {
+          this.ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+            const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+            const method = i === 0 ? 'moveTo' : 'lineTo';
+            this.ctx[method](Math.cos(angle) * half, Math.sin(angle) * half);
+          }
+          this.ctx.closePath();
+          this.ctx.fill();
+          break;
+        }
+        default:
+          this.ctx.fillRect(-half, -half / 2, size, size / 2);
       }
     }
 
@@ -249,6 +319,10 @@
   function addItem(name) {
     const trimmed = name.trim();
     if (!trimmed) return;
+    if (items.some((item) => item.name === trimmed)) {
+      alert('同じ名前のアイテムが既に存在します');
+      return;
+    }
     items.push({ name: trimmed, won: false });
     saveItems();
     renderItemList();
@@ -298,7 +372,7 @@
 
   function updateStartButton() {
     const remaining = items.filter((i) => !i.won);
-    startBtn.disabled = remaining.length < 2;
+    startBtn.disabled = remaining.length < 3;
   }
 
   function handleReducedMotionChange(event) {
@@ -386,6 +460,33 @@
       }
       if (!hasAccidentalAlignment()) return;
     }
+    // フォールバック: 偶然一致しているラインのリール配置を手動入れ替え
+    fixAccidentalAlignment();
+  }
+
+  function fixAccidentalAlignment() {
+    for (const line of ALL_LINES) {
+      if (line[0] === winningLine[0] && line[1] === winningLine[1] && line[2] === winningLine[2]) {
+        continue;
+      }
+      const lineItems = [getItemAtRow(0, line[0]), getItemAtRow(1, line[1]), getItemAtRow(2, line[2])];
+      if (lineItems[0] === lineItems[1] && lineItems[1] === lineItems[2]) {
+        // 3番目のリールの該当行を別アイテムとスワップ
+        const order = reelOrders[2];
+        const problemRow = line[2];
+        const problemIdx = (reelWinnerIdx[2] + (problemRow - winningLine[2]) + order.length) % order.length;
+        const matchedName = lineItems[2];
+        // 一致しないアイテムを探してスワップ
+        for (let s = 0; s < order.length; s++) {
+          if (s !== problemIdx && order[s] !== matchedName) {
+            [order[problemIdx], order[s]] = [order[s], order[problemIdx]];
+            // winnerIdxを再計算
+            reelWinnerIdx[2] = order.indexOf(choices[winnerIndex]);
+            break;
+          }
+        }
+      }
+    }
   }
 
   // ===== イージング関数 =====
@@ -409,11 +510,38 @@
     }
   }
 
+  // ===== 当選ライン選択 =====
+  function selectBestWinLine() {
+    // 各WIN_LINEについて、偶然一致の起きにくさをスコアリング
+    const shuffledLines = shuffle(WIN_LINES);
+    let bestLine = shuffledLines[0];
+    let bestScore = -1;
+
+    for (const line of shuffledLines) {
+      // このラインを仮選択した場合、他のALL_LINESとの行重複数をカウント
+      let score = 0;
+      for (const otherLine of ALL_LINES) {
+        if (otherLine[0] === line[0] && otherLine[1] === line[1] && otherLine[2] === line[2]) continue;
+        // 行が異なるほどスコアが高い（偶然一致しにくい）
+        let diff = 0;
+        for (let r = 0; r < 3; r++) {
+          if (otherLine[r] !== line[r]) diff++;
+        }
+        score += diff;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestLine = line;
+      }
+    }
+    return bestLine;
+  }
+
   // ===== 開始 =====
   function start() {
     const remaining = items.filter((i) => !i.won);
-    if (remaining.length < 2) {
-      alert('未抽選のアイテムが2つ以上必要です');
+    if (remaining.length < 3) {
+      alert('未抽選のアイテムが3つ以上必要です');
       return;
     }
 
@@ -421,7 +549,7 @@
     refreshLayoutMetrics();
     reelRepeats = resolveReelRepeats(choices.length);
     winnerIndex = Math.floor(Math.random() * choices.length);
-    winningLine = WIN_LINES[Math.floor(Math.random() * WIN_LINES.length)];
+    winningLine = selectBestWinLine();
     generateReelOrders();
     isReach = false;
 
@@ -429,8 +557,9 @@
     modalResultEl.textContent = '';
     modalResultEl.classList.remove('flash', 'win-reveal');
     modalCloseEl.classList.remove('visible');
-    slotMachineEl.classList.add('visible');
-    slotMachineEl.classList.remove('win-celebration');
+    slotOverlayEl.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+    slotOverlayEl.classList.remove('win-celebration');
 
     clearWinOverlays();
     const oldFlash = document.querySelector('.screen-flash');
@@ -440,7 +569,7 @@
     if (particleSystem) particleSystem.stop();
 
     const slotFrame = document.querySelector('.slot-frame');
-    slotFrame.classList.remove('reach');
+    slotFrame.classList.remove('reach', 'reach-genuine');
     if (!prefersReducedMotion) {
       slotFrame.classList.add('starting');
       setTimeout(() => slotFrame.classList.remove('starting'), 300);
@@ -479,6 +608,11 @@
           const itemEl = document.createElement('div');
           itemEl.className = 'reel-item';
           itemEl.textContent = order[c];
+          // 長いテキストのフォントサイズ縮小
+          if (order[c].length > 8) {
+            const scale = Math.max(0.65, 8 / order[c].length);
+            itemEl.style.fontSize = `${scale}em`;
+          }
           stripEl.appendChild(itemEl);
         }
       }
@@ -501,7 +635,7 @@
       reels.push(reel);
     }
 
-    slotMachineEl.classList.add('spinning-active');
+    slotOverlayEl.classList.add('spinning-active');
   }
 
   // ===== アニメーション =====
@@ -665,6 +799,9 @@
       soundEngine.playReachSound();
 
       slotFrame.classList.add('reach');
+      if (isReachGenuine) {
+        slotFrame.classList.add('reach-genuine');
+      }
 
       const label = document.createElement('div');
       label.className = 'reach-label';
@@ -683,18 +820,26 @@
     // 最後のリール停止時にスピン音を止める
     if (stoppedCount === 3) {
       soundEngine.stopSpinSound();
-      slotMachineEl.classList.remove('spinning-active');
+      slotOverlayEl.classList.remove('spinning-active');
     }
   }
 
   // ===== リーチ判定 =====
   function checkReach() {
-    for (const line of ALL_LINES) {
+    isReachGenuine = false;
+    let hasReach = false;
+    for (const line of WIN_LINES) {
       const i0 = getItemAtRow(0, line[0]);
       const i1 = getItemAtRow(1, line[1]);
-      if (i0 === i1) return true;
+      if (i0 === i1) {
+        hasReach = true;
+        // 当選ラインと一致するなら本命リーチ
+        if (line[0] === winningLine[0] && line[1] === winningLine[1] && line[2] === winningLine[2]) {
+          isReachGenuine = true;
+        }
+      }
     }
-    return false;
+    return hasReach;
   }
 
   // ===== 結果表示 =====
@@ -709,7 +854,7 @@
       flash.addEventListener('animationend', () => flash.remove());
 
       // 背景カラーシフト
-      slotMachineEl.classList.add('win-celebration');
+      slotOverlayEl.classList.add('win-celebration');
     }
 
     // ファンファーレ
@@ -718,7 +863,7 @@
     if (!prefersReducedMotion) {
       // 紙吹雪
       particleSystem = new ParticleSystem();
-      particleSystem.start(slotMachineEl);
+      particleSystem.start(slotOverlayEl);
     }
 
     // 当選テキスト
@@ -733,7 +878,7 @@
 
     // リーチ演出をクリーンアップ
     const slotFrame = document.querySelector('.slot-frame');
-    slotFrame.classList.remove('reach');
+    slotFrame.classList.remove('reach', 'reach-genuine');
     const reachLabel = document.querySelector('.reach-label');
     if (reachLabel) reachLabel.remove();
 
@@ -747,23 +892,32 @@
 
     // 全て当選済みかチェック
     const remainingItems = items.filter((i) => !i.won);
-    if (remainingItems.length === 0) {
+    const isAllDone = remainingItems.length === 0;
+
+    if (isAllDone) {
+      // 全抽選完了時: 結果テキスト表示後に完了メッセージを追加
       setTimeout(() => {
-        modalResultEl.textContent = `${winnerName} - 全て抽選完了！`;
-      }, 2000);
+        const completeMsg = document.createElement('div');
+        completeMsg.className = 'complete-message';
+        completeMsg.textContent = '全て抽選完了！';
+        modalResultEl.parentNode.insertBefore(completeMsg, modalResultEl.nextSibling);
+      }, 2500);
     }
 
     // 閉じるボタンを表示
     setTimeout(() => {
       modalCloseEl.classList.add('visible');
-    }, 1500);
+    }, isAllDone ? 2000 : 1500);
   }
 
   function closeModal() {
-    slotMachineEl.classList.remove('visible', 'win-celebration', 'spinning-active');
+    slotOverlayEl.classList.remove('visible', 'win-celebration', 'spinning-active');
     modalCloseEl.classList.remove('visible');
+    document.body.style.overflow = '';
     clearWinOverlays();
     if (particleSystem) particleSystem.stop();
+    const completeMsg = document.querySelector('.complete-message');
+    if (completeMsg) completeMsg.remove();
     startBtn.disabled = false;
     updateStartButton();
   }

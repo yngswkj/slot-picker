@@ -386,25 +386,42 @@ h1::after {
   box-shadow: 0 0 18px rgba(93, 233, 255, 0.26);
 }
 
-.slot-machine {
-  display: none;
-}
-
-.slot-machine.visible {
+/* ===== モーダルオーバーレイ ===== */
+.slot-overlay {
   position: fixed;
   inset: 0;
   z-index: 100;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
   padding: 16px;
-  background: rgba(3, 9, 23, 0.72);
-  backdrop-filter: blur(7px);
+  background: rgba(3, 9, 23, 0);
+  backdrop-filter: blur(0px);
+  overflow-y: auto;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    background 0.4s ease,
+    backdrop-filter 0.4s ease,
+    opacity 0.4s ease,
+    visibility 0s linear 0.4s;
 }
 
-.slot-machine.visible::before {
+.slot-overlay.visible {
+  background: rgba(3, 9, 23, 0.78);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    background 0.4s ease,
+    backdrop-filter 0.4s ease,
+    opacity 0.4s ease,
+    visibility 0s linear 0s;
+}
+
+.slot-overlay::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -413,7 +430,36 @@ h1::after {
     linear-gradient(rgba(219, 236, 255, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(219, 236, 255, 0.04) 1px, transparent 1px);
   background-size: 44px 44px;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.slot-overlay.visible::before {
   opacity: 0.22;
+}
+
+/* ===== モーダルダイアログ ===== */
+.slot-modal {
+  position: relative;
+  transform: scale(0.85) translateY(30px);
+  opacity: 0;
+  transition:
+    transform 0.45s cubic-bezier(0.2, 0.85, 0.2, 1),
+    opacity 0.35s ease;
+}
+
+.slot-overlay.visible .slot-modal {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+.slot-modal-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* slot-frame の下に結果エリア用のスペースを確保 */
+  padding-bottom: 140px;
 }
 
 .slot-frame {
@@ -500,6 +546,42 @@ h1::after {
 
 .slot-frame.reach {
   animation: reachPulse 0.55s ease-in-out infinite;
+}
+
+.slot-frame.reach .reel-window:last-child {
+  border-color: rgba(240, 109, 255, 0.7);
+  animation: reelReachGlow 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes reelReachGlow {
+  0% {
+    box-shadow:
+      inset 0 0 12px rgba(240, 109, 255, 0.15),
+      0 0 8px rgba(240, 109, 255, 0.3);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 20px rgba(240, 109, 255, 0.3),
+      0 0 18px rgba(240, 109, 255, 0.5);
+  }
+}
+
+.slot-frame.reach-genuine .reel-window:last-child {
+  border-color: rgba(255, 205, 94, 0.8);
+  animation: reelReachGenuineGlow 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes reelReachGenuineGlow {
+  0% {
+    box-shadow:
+      inset 0 0 14px rgba(255, 205, 94, 0.2),
+      0 0 10px rgba(255, 205, 94, 0.4);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 24px rgba(255, 205, 94, 0.35),
+      0 0 22px rgba(255, 205, 94, 0.6);
+  }
 }
 
 .reach-label {
@@ -620,14 +702,13 @@ h1::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 12px;
+  padding: 0 8px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   border-bottom: 1px solid rgba(125, 164, 224, 0.16);
   color: rgba(236, 245, 255, 0.9);
   font-family: var(--font-display);
-  font-size: clamp(1.03rem, 2vw, 1.34rem);
+  font-size: clamp(0.78rem, 1.6vw, 1.34rem);
   font-weight: 800;
   letter-spacing: 0.01em;
   text-shadow: 0 0 8px rgba(65, 190, 255, 0.26);
@@ -648,11 +729,12 @@ h1::after {
 .win-cell-box {
   position: absolute;
   border-radius: 12px;
-  border: 2px solid rgba(240, 109, 255, 0.9);
+  border: 2px solid rgba(255, 205, 94, 0.9);
   box-shadow:
-    0 0 0 1px rgba(240, 109, 255, 0.44),
-    0 0 22px rgba(240, 109, 255, 0.4),
-    inset 0 0 14px rgba(240, 109, 255, 0.18);
+    0 0 0 1px rgba(255, 205, 94, 0.44),
+    0 0 22px rgba(255, 205, 94, 0.4),
+    inset 0 0 14px rgba(255, 205, 94, 0.15);
+  background: rgba(255, 205, 94, 0.08);
   opacity: 0;
   transform: scale(0.96);
   transition: opacity 220ms ease, transform 220ms ease;
@@ -667,15 +749,15 @@ h1::after {
 @keyframes winCellPulse {
   0% {
     box-shadow:
-      0 0 0 1px rgba(240, 109, 255, 0.36),
-      0 0 16px rgba(240, 109, 255, 0.3),
-      inset 0 0 10px rgba(240, 109, 255, 0.14);
+      0 0 0 1px rgba(255, 205, 94, 0.36),
+      0 0 16px rgba(255, 205, 94, 0.3),
+      inset 0 0 10px rgba(255, 205, 94, 0.12);
   }
   100% {
     box-shadow:
-      0 0 0 1px rgba(240, 109, 255, 0.62),
-      0 0 30px rgba(240, 109, 255, 0.56),
-      inset 0 0 20px rgba(240, 109, 255, 0.22);
+      0 0 0 1px rgba(255, 205, 94, 0.62),
+      0 0 30px rgba(255, 205, 94, 0.56),
+      inset 0 0 20px rgba(255, 205, 94, 0.2);
   }
 }
 
@@ -690,12 +772,13 @@ h1::after {
 }
 
 .win-line {
-  stroke: var(--neon-pink);
-  stroke-width: 4;
+  stroke: var(--neon-gold);
+  stroke-width: 5;
   stroke-linecap: round;
+  stroke-linejoin: round;
   fill: none;
   opacity: 0;
-  filter: drop-shadow(0 0 6px rgba(240, 109, 255, 0.9));
+  filter: drop-shadow(0 0 8px rgba(255, 205, 94, 0.95));
   transition: opacity 0.28s ease;
 }
 
@@ -706,16 +789,18 @@ h1::after {
 
 @keyframes lineGlow {
   0% {
-    filter: drop-shadow(0 0 5px rgba(240, 109, 255, 0.85));
-    stroke-width: 4;
+    filter: drop-shadow(0 0 6px rgba(255, 205, 94, 0.9))
+           drop-shadow(0 0 12px rgba(255, 205, 94, 0.5));
+    stroke-width: 5;
   }
   100% {
-    filter: drop-shadow(0 0 14px rgba(240, 109, 255, 1));
-    stroke-width: 5;
+    filter: drop-shadow(0 0 10px rgba(255, 205, 94, 1))
+           drop-shadow(0 0 22px rgba(255, 205, 94, 0.7));
+    stroke-width: 6;
   }
 }
 
-.slot-machine.visible.spinning-active::after {
+.slot-overlay.visible.spinning-active::after {
   content: '';
   position: fixed;
   inset: 0;
@@ -723,7 +808,7 @@ h1::after {
     radial-gradient(circle at 50% 50%, rgba(93, 233, 255, 0.22) 0%, rgba(240, 109, 255, 0.2) 28%, transparent 72%);
   animation: bgPulse 1.8s ease-in-out infinite;
   pointer-events: none;
-  z-index: 99;
+  z-index: -1;
 }
 
 @keyframes bgPulse {
@@ -737,20 +822,44 @@ h1::after {
 }
 
 .modal-result {
+  position: absolute;
+  bottom: 54px;
+  left: 50%;
+  transform: translateX(-50%);
   min-height: 2.2em;
-  padding: 10px 24px;
-  border-radius: 999px;
-  border: 1px solid rgba(145, 189, 255, 0.36);
-  background: linear-gradient(180deg, rgba(10, 24, 62, 0.86), rgba(8, 18, 48, 0.9));
-  box-shadow: var(--shadow-soft);
-  color: #dcf8ff;
+  min-width: 220px;
+  max-width: min(480px, 90vw);
+  padding: 20px 32px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 205, 94, 0.6);
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 205, 94, 0.12), transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(93, 233, 255, 0.1), transparent 50%),
+    linear-gradient(180deg, rgba(12, 26, 66, 0.92), rgba(8, 16, 42, 0.96));
+  box-shadow:
+    0 0 0 1px rgba(255, 205, 94, 0.3),
+    0 0 28px rgba(255, 205, 94, 0.25),
+    var(--shadow-panel);
+  color: #fff;
   text-align: center;
   font-family: var(--font-display);
   font-size: clamp(1.9rem, 5vw, 2.9rem);
   font-weight: 800;
   letter-spacing: 0.05em;
-  text-shadow: 0 0 18px rgba(103, 233, 255, 0.66);
+  text-shadow: 0 0 18px rgba(255, 205, 94, 0.66);
   z-index: 101;
+  word-break: break-all;
+}
+
+.modal-result::before {
+  content: 'WINNER';
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.6rem;
+  letter-spacing: 0.34em;
+  color: rgba(255, 205, 94, 0.85);
+  font-weight: 700;
+  text-shadow: none;
 }
 
 .modal-result.win-reveal {
@@ -759,28 +868,59 @@ h1::after {
 
 @keyframes winReveal {
   0% {
-    transform: scale(0.4);
+    transform: translateX(-50%) scale(0.4);
     opacity: 0;
     text-shadow: none;
   }
   30% {
-    transform: scale(1.42);
+    transform: translateX(-50%) scale(1.42);
     opacity: 1;
     text-shadow:
       0 0 30px rgba(101, 238, 255, 0.95),
       0 0 54px rgba(240, 109, 255, 0.75);
   }
   52% {
-    transform: scale(0.92);
+    transform: translateX(-50%) scale(0.92);
   }
   72% {
-    transform: scale(1.08);
+    transform: translateX(-50%) scale(1.08);
   }
   100% {
-    transform: scale(1);
+    transform: translateX(-50%) scale(1);
     text-shadow:
       0 0 12px rgba(101, 238, 255, 0.65),
       0 0 24px rgba(240, 109, 255, 0.35);
+  }
+}
+
+.complete-message {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 24px;
+  border-radius: 12px;
+  white-space: nowrap;
+  border: 1px solid rgba(93, 233, 255, 0.5);
+  background: rgba(10, 24, 62, 0.8);
+  color: var(--neon-cyan-strong);
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2.5vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 12px rgba(93, 233, 255, 0.6);
+  z-index: 101;
+  animation: completeReveal 0.6s ease-out forwards;
+}
+
+@keyframes completeReveal {
+  0% {
+    transform: translateX(-50%) translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
   }
 }
 
@@ -820,7 +960,7 @@ h1::after {
   }
 }
 
-.slot-machine.win-celebration {
+.slot-overlay.win-celebration {
   animation: bgColorShift 2.8s ease-in-out;
 }
 
@@ -832,6 +972,10 @@ h1::after {
 }
 
 .modal-close {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
   min-width: 130px;
   height: 42px;
   padding: 0 26px;
@@ -987,9 +1131,12 @@ h1::after {
     width: 100%;
   }
 
-  .slot-machine.visible {
-    gap: 16px;
+  .slot-overlay.visible {
     padding: 10px;
+  }
+
+  .slot-modal-body {
+    gap: 16px;
   }
 
   .slot-frame {
