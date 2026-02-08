@@ -1,4 +1,4 @@
-import gsap from 'gsap';
+import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.7/index.js';
 
 // ===== 定数 =====
   const DEFAULT_ITEM_HEIGHT = 64;
@@ -76,6 +76,7 @@ import gsap from 'gsap';
   // ===== DOM参照 =====
   const itemInputEl = document.getElementById('item-input');
   const addBtnEl = document.getElementById('add-btn');
+  const itemFormEl = document.getElementById('item-form');
   const itemListEl = document.getElementById('item-list');
   const startBtn = document.getElementById('start-btn');
   const resetBtnEl = document.getElementById('reset-btn');
@@ -304,10 +305,16 @@ import gsap from 'gsap';
   let particleSystem = null;
 
   // ===== イベント =====
-  addBtnEl.addEventListener('click', () => addItem(itemInputEl.value));
-  itemInputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') addItem(itemInputEl.value);
-  });
+  const handleAddItem = (event) => {
+    if (event) event.preventDefault();
+    addItem(itemInputEl.value);
+  };
+
+  if (itemFormEl) {
+    itemFormEl.addEventListener('submit', handleAddItem);
+  } else {
+    addBtnEl.addEventListener('click', handleAddItem);
+  }
   startBtn.addEventListener('click', start);
   resetBtnEl.addEventListener('click', resetWonStatus);
   stopBtns.forEach((btn, i) => {
@@ -799,9 +806,10 @@ import gsap from 'gsap';
     const isReachTarget = isReach && othersSettled === 2;
 
     const currentPos = reel.position;
-    const endPos = calculateStopPosition(
+    const rawEndPos = calculateStopPosition(
       currentPos, reelWinnerIdx[reelIndex], choices.length, winningLine[reelIndex], isReachTarget
     );
+    const endPos = normalizeReelPosition(rawEndPos, reel.repeatCount);
 
     // 距離に基づいて自然な減速時間を算出（初速=SPIN_SPEEDに常に一致）
     const distance = currentPos - endPos;
@@ -845,6 +853,19 @@ import gsap from 'gsap';
     if (k < 1) k = 1;
 
     return -(winner + k * choicesLen - CENTER_OFFSET) * itemH + rowOffset;
+  }
+
+  function normalizeReelPosition(position, repeatCount) {
+    const oneSetLen = choices.length * layout.itemHeight;
+    const visibleLen = getVisibleItems() * layout.itemHeight;
+    const stripLen = oneSetLen * repeatCount;
+    const minPos = -(stripLen - visibleLen);
+    let normalized = position;
+
+    while (normalized < minPos) normalized += oneSetLen;
+    while (normalized > 0) normalized -= oneSetLen;
+
+    return normalized;
   }
 
   function updateStopping(reel, now) {
