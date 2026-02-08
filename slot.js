@@ -1,4 +1,4 @@
-import gsap from 'gsap';
+import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.7/index.js';
 
 // ===== 定数 =====
   const DEFAULT_ITEM_HEIGHT = 64;
@@ -76,6 +76,7 @@ import gsap from 'gsap';
   // ===== DOM参照 =====
   const itemInputEl = document.getElementById('item-input');
   const addBtnEl = document.getElementById('add-btn');
+  const itemFormEl = document.getElementById('item-form');
   const itemListEl = document.getElementById('item-list');
   const startBtn = document.getElementById('start-btn');
   const resetBtnEl = document.getElementById('reset-btn');
@@ -304,10 +305,16 @@ import gsap from 'gsap';
   let particleSystem = null;
 
   // ===== イベント =====
-  addBtnEl.addEventListener('click', () => addItem(itemInputEl.value));
-  itemInputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') addItem(itemInputEl.value);
-  });
+  const handleAddItem = (event) => {
+    if (event) event.preventDefault();
+    addItem(itemInputEl.value);
+  };
+
+  if (itemFormEl) {
+    itemFormEl.addEventListener('submit', handleAddItem);
+  } else {
+    addBtnEl.addEventListener('click', handleAddItem);
+  }
   startBtn.addEventListener('click', start);
   resetBtnEl.addEventListener('click', resetWonStatus);
   stopBtns.forEach((btn, i) => {
