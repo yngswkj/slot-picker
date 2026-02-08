@@ -1,0 +1,417 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --item-height: 80px;
+  --visible-items: 3;
+  --reel-width: 180px;
+  --reel-gap: 6px;
+  --bg-dark: #0f0f1a;
+  --bg-frame: #1a1a2e;
+  --bg-reel: #16213e;
+  --accent: #e94560;
+  --text: #e0e0e0;
+}
+
+body {
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 16px;
+}
+
+#app {
+  max-width: 800px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* --- アイテム管理セクション --- */
+.item-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.item-add {
+  display: flex;
+  gap: 8px;
+}
+
+#item-input {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 1rem;
+  background: var(--bg-frame);
+  color: var(--text);
+  border: 1px solid #333;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#item-input:focus {
+  border-color: var(--accent);
+}
+
+#add-btn {
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  background: #2d6a4f;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+#add-btn:hover {
+  opacity: 0.85;
+}
+
+/* --- アイテムリスト（カードグリッド） --- */
+.item-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.item-list:empty::after {
+  content: 'アイテムを追加してください';
+  display: block;
+  padding: 32px;
+  text-align: center;
+  color: #666;
+  font-size: 0.9rem;
+  grid-column: 1 / -1;
+}
+
+.item-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: var(--bg-frame);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+
+.item-row:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.item-row.won {
+  opacity: 0.45;
+}
+
+.item-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.item-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.item-badge.pending {
+  background: #333;
+  color: #999;
+}
+
+.item-badge.won {
+  background: var(--accent);
+  color: #fff;
+}
+
+.item-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #555;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.item-row:hover .item-delete {
+  opacity: 1;
+}
+
+.item-delete:hover {
+  color: var(--accent);
+}
+
+/* --- アクションボタン --- */
+.item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#start-btn {
+  flex: 1;
+  padding: 14px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+#start-btn:hover {
+  opacity: 0.9;
+}
+
+#start-btn:active {
+  transform: scale(0.98);
+}
+
+#start-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 14px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  background: #333;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.btn-secondary:hover {
+  opacity: 0.8;
+}
+
+/* --- スロットマシン（モーダル） --- */
+.slot-machine {
+  display: none;
+}
+
+.slot-machine.visible {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.85);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.slot-frame {
+  position: relative;
+  background: var(--bg-frame);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.6);
+}
+
+.reel-container {
+  display: flex;
+  gap: var(--reel-gap);
+}
+
+.reel-window {
+  width: var(--reel-width);
+  height: calc(var(--item-height) * var(--visible-items));
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-reel);
+  border-radius: 8px;
+}
+
+.reel-strip {
+  will-change: transform;
+}
+
+.reel-item {
+  height: var(--item-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  padding: 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* 当選ラインSVG */
+.reel-container {
+  position: relative;
+}
+
+.win-line-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.win-line {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  fill: none;
+  opacity: 0;
+  filter: drop-shadow(0 0 6px var(--accent));
+  transition: opacity 0.3s ease;
+}
+
+.win-line.show {
+  opacity: 1;
+  animation: lineGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes lineGlow {
+  0% { filter: drop-shadow(0 0 4px var(--accent)); stroke-width: 3; }
+  100% { filter: drop-shadow(0 0 12px var(--accent)); stroke-width: 4; }
+}
+
+/* 上下グラデーションマスク */
+.reel-window::before,
+.reel-window::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--item-height);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.reel-window::before {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(22, 33, 62, 0.4), transparent);
+}
+
+.reel-window::after {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(22, 33, 62, 0.4), transparent);
+}
+
+/* --- モーダル内の結果表示 --- */
+.modal-result {
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  min-height: 2.4em;
+}
+
+.modal-result.flash {
+  animation: flashResult 0.6s ease-in-out 3;
+}
+
+/* --- モーダル閉じるボタン --- */
+.modal-close {
+  padding: 12px 40px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: none;
+}
+
+.modal-close.visible {
+  display: block;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* --- 下部の結果（非モーダル用は非表示に） --- */
+.result {
+  display: none;
+}
+
+@keyframes flashResult {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* --- レスポンシブ --- */
+@media (max-width: 620px) {
+  :root {
+    --reel-width: 100px;
+    --item-height: 60px;
+  }
+
+  .reel-item {
+    font-size: 0.95rem;
+  }
+
+  .slot-frame {
+    padding: 16px;
+  }
+
+  .modal-result {
+    font-size: 1.3rem;
+  }
+
+  .item-list {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  }
+}

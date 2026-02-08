@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スロット抽選マシン</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <h1>スロット抽選マシン</h1>
+
+    <div class="item-section">
+      <div class="item-add">
+        <input type="text" id="item-input" placeholder="アイテム名を入力">
+        <button id="add-btn">追加</button>
+      </div>
+      <ul id="item-list" class="item-list"></ul>
+      <div class="item-actions">
+        <button id="start-btn" disabled>スタート！</button>
+        <button id="reset-btn" class="btn-secondary">当選リセット</button>
+      </div>
+    </div>
+
+    <div class="slot-machine" id="slot-machine">
+      <div class="slot-frame">
+        <div class="reel-container">
+          <div class="reel-window" id="reel-0">
+            <div class="reel-strip"></div>
+          </div>
+          <div class="reel-window" id="reel-1">
+            <div class="reel-strip"></div>
+          </div>
+          <div class="reel-window" id="reel-2">
+            <div class="reel-strip"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-result" id="modal-result"></div>
+      <button class="modal-close" id="modal-close">閉じる</button>
+    </div>
+  </div>
+
+  <script src="slot.js"></script>
+</body>
+</html>
