@@ -7,8 +7,8 @@
 }
 
 :root {
-  --item-height: 82px;
-  --visible-items: 3;
+  --item-height: 64px;
+  --visible-items: 5;
   --reel-width: 184px;
   --reel-gap: 10px;
 
@@ -60,15 +60,13 @@ body::after {
 
 body::before {
   background:
-    repeating-linear-gradient(
-      90deg,
+    repeating-linear-gradient(90deg,
       rgba(255, 255, 255, 0.22) 0,
       rgba(255, 255, 255, 0.22) 84px,
       rgba(115, 132, 156, 0.2) 84px,
       rgba(115, 132, 156, 0.2) 90px,
       rgba(255, 255, 255, 0.09) 90px,
-      rgba(255, 255, 255, 0.09) 180px
-    );
+      rgba(255, 255, 255, 0.09) 180px);
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.3) 70%, transparent 100%);
   opacity: 0.42;
   filter: blur(1px);
@@ -111,7 +109,7 @@ body::after {
   z-index: 0;
 }
 
-#app > * {
+#app>* {
   position: relative;
   z-index: 1;
 }
@@ -438,18 +436,13 @@ h1::after {
   opacity: 0.22;
 }
 
-/* ===== モーダルダイアログ ===== */
+/* ===== モーダルダイアログ (GSAP handles animation) ===== */
 .slot-modal {
   position: relative;
-  transform: scale(0.85) translateY(30px);
   opacity: 0;
-  transition:
-    transform 0.45s cubic-bezier(0.2, 0.85, 0.2, 1),
-    opacity 0.35s ease;
 }
 
 .slot-overlay.visible .slot-modal {
-  transform: scale(1) translateY(0);
   opacity: 1;
 }
 
@@ -464,6 +457,8 @@ h1::after {
 
 .slot-frame {
   position: relative;
+  display: flex;
+  flex-direction: column;
   border-radius: 28px;
   padding: 30px;
   border: 1px solid rgba(156, 199, 255, 0.46);
@@ -492,41 +487,10 @@ h1::after {
   opacity: 0.88;
 }
 
-@keyframes machineShake {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  25% {
-    transform: translate(-2px, 1px) rotate(-0.2deg);
-  }
-  50% {
-    transform: translate(2px, -1px) rotate(0.2deg);
-  }
-  75% {
-    transform: translate(-1px, 2px) rotate(-0.15deg);
-  }
-}
-
-.slot-frame.starting {
-  animation: machineShake 0.34s ease-out;
-}
-
-@keyframes frameShake {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(3px);
-  }
-}
-
-.slot-frame.reel-impact {
-  animation: frameShake 0.15s ease-out;
-}
+/* machineShake / frameShake → GSAP handles these */
 
 @keyframes reachPulse {
+
   0%,
   100% {
     box-shadow:
@@ -535,6 +499,7 @@ h1::after {
       0 0 30px rgba(65, 203, 255, 0.4),
       var(--shadow-panel);
   }
+
   50% {
     box-shadow:
       inset 0 0 0 1px rgba(217, 235, 255, 0.18),
@@ -548,7 +513,7 @@ h1::after {
   animation: reachPulse 0.55s ease-in-out infinite;
 }
 
-.slot-frame.reach .reel-window:last-child {
+.slot-frame.reach .reel-window.reach-target {
   border-color: rgba(240, 109, 255, 0.7);
   animation: reelReachGlow 0.6s ease-in-out infinite alternate;
 }
@@ -559,6 +524,7 @@ h1::after {
       inset 0 0 12px rgba(240, 109, 255, 0.15),
       0 0 8px rgba(240, 109, 255, 0.3);
   }
+
   100% {
     box-shadow:
       inset 0 0 20px rgba(240, 109, 255, 0.3),
@@ -566,7 +532,7 @@ h1::after {
   }
 }
 
-.slot-frame.reach-genuine .reel-window:last-child {
+.slot-frame.reach-genuine .reel-window.reach-target {
   border-color: rgba(255, 205, 94, 0.8);
   animation: reelReachGenuineGlow 0.4s ease-in-out infinite alternate;
 }
@@ -577,6 +543,7 @@ h1::after {
       inset 0 0 14px rgba(255, 205, 94, 0.2),
       0 0 10px rgba(255, 205, 94, 0.4);
   }
+
   100% {
     box-shadow:
       inset 0 0 24px rgba(255, 205, 94, 0.35),
@@ -603,11 +570,13 @@ h1::after {
 }
 
 @keyframes reachTextPulse {
+
   0%,
   100% {
     transform: translateX(-50%) scale(1);
     opacity: 1;
   }
+
   50% {
     transform: translateX(-50%) scale(1.13);
     opacity: 0.84;
@@ -653,7 +622,7 @@ h1::after {
   position: absolute;
   left: 0;
   right: 0;
-  height: var(--item-height);
+  height: calc(var(--item-height) * 0.75);
   pointer-events: none;
   z-index: 5;
 }
@@ -675,6 +644,7 @@ h1::after {
       0 0 0 1px rgba(240, 109, 255, 0.55),
       0 0 26px rgba(240, 109, 255, 0.52);
   }
+
   100% {
     box-shadow: none;
   }
@@ -686,15 +656,10 @@ h1::after {
 
 .reel-strip {
   will-change: transform;
-  transition: filter 0.3s ease;
 }
 
 .reel-strip.spinning {
   filter: blur(1.8px) saturate(1.08);
-}
-
-.reel-strip.blur-light {
-  filter: blur(0.8px);
 }
 
 .reel-item {
@@ -708,7 +673,7 @@ h1::after {
   border-bottom: 1px solid rgba(125, 164, 224, 0.16);
   color: rgba(236, 245, 255, 0.9);
   font-family: var(--font-display);
-  font-size: clamp(0.78rem, 1.6vw, 1.34rem);
+  font-size: clamp(0.72rem, 1.4vw, 1.13rem);
   font-weight: 800;
   letter-spacing: 0.01em;
   text-shadow: 0 0 8px rgba(65, 190, 255, 0.26);
@@ -753,6 +718,7 @@ h1::after {
       0 0 16px rgba(255, 205, 94, 0.3),
       inset 0 0 10px rgba(255, 205, 94, 0.12);
   }
+
   100% {
     box-shadow:
       0 0 0 1px rgba(255, 205, 94, 0.62),
@@ -771,32 +737,34 @@ h1::after {
   pointer-events: none;
 }
 
-.win-line {
+.win-marker {
+  fill: var(--neon-gold);
+  opacity: 0;
+  filter: drop-shadow(0 0 6px rgba(255, 205, 94, 0.9));
+}
+
+.win-connector {
   stroke: var(--neon-gold);
-  stroke-width: 5;
+  stroke-width: 3;
   stroke-linecap: round;
-  stroke-linejoin: round;
   fill: none;
   opacity: 0;
-  filter: drop-shadow(0 0 8px rgba(255, 205, 94, 0.95));
-  transition: opacity 0.28s ease;
+  filter: drop-shadow(0 0 6px rgba(255, 205, 94, 0.9));
 }
 
-.win-line.show {
+.win-line-svg.show .win-marker,
+.win-line-svg.show .win-connector {
   opacity: 1;
-  animation: lineGlow 0.9s ease-in-out infinite alternate;
+  animation: connectorGlow 0.9s ease-in-out infinite alternate;
 }
 
-@keyframes lineGlow {
+@keyframes connectorGlow {
   0% {
-    filter: drop-shadow(0 0 6px rgba(255, 205, 94, 0.9))
-           drop-shadow(0 0 12px rgba(255, 205, 94, 0.5));
-    stroke-width: 5;
+    filter: drop-shadow(0 0 4px rgba(255, 205, 94, 0.8));
   }
+
   100% {
-    filter: drop-shadow(0 0 10px rgba(255, 205, 94, 1))
-           drop-shadow(0 0 22px rgba(255, 205, 94, 0.7));
-    stroke-width: 6;
+    filter: drop-shadow(0 0 10px rgba(255, 205, 94, 1)) drop-shadow(0 0 18px rgba(255, 205, 94, 0.6));
   }
 }
 
@@ -812,10 +780,12 @@ h1::after {
 }
 
 @keyframes bgPulse {
+
   0%,
   100% {
     opacity: 0.24;
   }
+
   50% {
     opacity: 0.84;
   }
@@ -824,8 +794,11 @@ h1::after {
 .modal-result {
   position: absolute;
   bottom: 54px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
   min-height: 2.2em;
   min-width: 220px;
   max-width: min(480px, 90vw);
@@ -862,42 +835,16 @@ h1::after {
   text-shadow: none;
 }
 
-.modal-result.win-reveal {
-  animation: winReveal 1.38s cubic-bezier(0.2, 0.85, 0.2, 1) forwards;
-}
-
-@keyframes winReveal {
-  0% {
-    transform: translateX(-50%) scale(0.4);
-    opacity: 0;
-    text-shadow: none;
-  }
-  30% {
-    transform: translateX(-50%) scale(1.42);
-    opacity: 1;
-    text-shadow:
-      0 0 30px rgba(101, 238, 255, 0.95),
-      0 0 54px rgba(240, 109, 255, 0.75);
-  }
-  52% {
-    transform: translateX(-50%) scale(0.92);
-  }
-  72% {
-    transform: translateX(-50%) scale(1.08);
-  }
-  100% {
-    transform: translateX(-50%) scale(1);
-    text-shadow:
-      0 0 12px rgba(101, 238, 255, 0.65),
-      0 0 24px rgba(240, 109, 255, 0.35);
-  }
-}
+/* winReveal → GSAP handles this */
 
 .complete-message {
   position: absolute;
   bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
   padding: 10px 24px;
   border-radius: 12px;
   white-space: nowrap;
@@ -910,18 +857,7 @@ h1::after {
   letter-spacing: 0.1em;
   text-shadow: 0 0 12px rgba(93, 233, 255, 0.6);
   z-index: 101;
-  animation: completeReveal 0.6s ease-out forwards;
-}
-
-@keyframes completeReveal {
-  0% {
-    transform: translateX(-50%) translateY(10px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-  }
+  /* animation handled by GSAP */
 }
 
 .screen-flash {
@@ -930,31 +866,26 @@ h1::after {
   z-index: 200;
   pointer-events: none;
   background: radial-gradient(circle, rgba(232, 247, 255, 0.95), rgba(189, 220, 255, 0.72));
-  animation: screenFlash 0.52s ease-out forwards;
-}
-
-@keyframes screenFlash {
-  0% {
-    opacity: 0.78;
-  }
-  100% {
-    opacity: 0;
-  }
+  /* animation handled by GSAP */
 }
 
 @keyframes bgColorShift {
   0% {
     background: rgba(3, 9, 23, 0.72);
   }
+
   28% {
     background: rgba(34, 26, 82, 0.75);
   }
+
   52% {
     background: rgba(12, 57, 92, 0.74);
   }
+
   74% {
     background: rgba(49, 23, 80, 0.73);
   }
+
   100% {
     background: rgba(3, 9, 23, 0.72);
   }
@@ -974,8 +905,11 @@ h1::after {
 .modal-close {
   position: absolute;
   bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
   min-width: 130px;
   height: 42px;
   padding: 0 26px;
@@ -1004,6 +938,80 @@ h1::after {
   box-shadow: 0 0 18px rgba(93, 233, 255, 0.26);
 }
 
+/* ===== ストップボタン ===== */
+.reel-stop-buttons {
+  display: flex;
+  justify-content: center;
+  gap: var(--reel-gap);
+  padding: 14px 14px 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.reel-stop-buttons.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reel-stop-btn {
+  width: var(--reel-width);
+  height: 38px;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #e8fbff;
+  border: 1px solid rgba(122, 240, 255, 0.5);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(39, 120, 160, 0.85), rgba(24, 80, 130, 0.9));
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(93, 233, 255, 0.2),
+    0 0 14px rgba(48, 200, 242, 0.35),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.2);
+  transition:
+    transform 100ms ease,
+    box-shadow 140ms ease,
+    opacity 200ms ease;
+  animation: stopBtnPulse 1.2s ease-in-out infinite;
+}
+
+.reel-stop-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(134, 241, 255, 0.4),
+    0 0 22px rgba(65, 213, 255, 0.5),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.reel-stop-btn:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+.reel-stop-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  animation: none;
+  pointer-events: none;
+}
+
+@keyframes stopBtnPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(93, 233, 255, 0.2),
+      0 0 14px rgba(48, 200, 242, 0.35),
+      inset 0 -2px 6px rgba(0, 0, 0, 0.2);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(93, 233, 255, 0.4),
+      0 0 22px rgba(48, 200, 242, 0.55),
+      inset 0 -2px 6px rgba(0, 0, 0, 0.2);
+  }
+}
+
 @media (max-width: 900px) {
   #app {
     width: min(100%, calc(100vw - 8px));
@@ -1014,7 +1022,7 @@ h1::after {
 @media (max-width: 760px) {
   :root {
     --reel-width: 128px;
-    --item-height: 68px;
+    --item-height: 52px;
     --reel-gap: 8px;
   }
 
@@ -1073,6 +1081,11 @@ h1::after {
     font-size: 1.45rem;
   }
 
+  .reel-stop-btn {
+    height: 34px;
+    font-size: 0.76rem;
+  }
+
   .modal-result {
     font-size: 1.9rem;
     padding: 8px 16px;
@@ -1082,7 +1095,7 @@ h1::after {
 @media (max-width: 620px) {
   :root {
     --reel-width: 102px;
-    --item-height: 60px;
+    --item-height: 44px;
     --reel-gap: 6px;
   }
 
@@ -1176,9 +1189,15 @@ h1::after {
     top: -34px;
     font-size: 1.2rem;
   }
+
+  .reel-stop-btn {
+    height: 30px;
+    font-size: 0.72rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

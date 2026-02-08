@@ -1,36 +1,53 @@
-(() => {
-  // ===== 定数 =====
-  const DEFAULT_ITEM_HEIGHT = 82;
-  const CENTER_OFFSET = 1;
+import gsap from 'gsap';
+
+// ===== 定数 =====
+  const DEFAULT_ITEM_HEIGHT = 64;
+  const CENTER_OFFSET = 2;
   const BASE_REPEATS = 20;
   const SPIN_SPEED = 2500;
-  const EXTRA_ROTATIONS = 3;
   const STOP_DURATION = 2200;
-  const STOP_DELAYS = [1500, 2500, 3500];
+  const EASE_DERIV_AT_0 = 4.0;
+  const MIN_STOP_DURATION = 800;
+  const MAX_STOP_DURATION = 6000;
+  const REACH_MIN_DURATION = 3000;
+  const AUTO_STOP_DELAYS = [12000, 14000, 16000];
   const DEFAULT_REEL_WIDTH = 186;
   const DEFAULT_REEL_GAP = 10;
   const LS_KEY = 'slot-picker-items';
   const ACCEL_DURATION = 800;
-  const BOUNCE_DURATION = 200;
-  const DEFAULT_BOUNCE_AMOUNT = 12;
+  const GSAP_BOUNCE_DURATION = 0.22;
+  const GSAP_BOUNCE_AMOUNT = 10;
   const REACH_EXTRA_DELAY = 1500;
-  const REACH_STOP_DURATION = 3000;
 
   const WIN_LINES = [
+    [0, 0, 0],
     [1, 1, 1],
+    [2, 2, 2],
+    [3, 3, 3],
+    [4, 4, 4],
     [0, 1, 2],
-    [2, 1, 0],
+    [4, 3, 2],
+    [0, 2, 4],
+    [4, 2, 0],
   ];
 
   const ALL_LINES = [
     [0, 0, 0],
     [1, 1, 1],
     [2, 2, 2],
+    [3, 3, 3],
+    [4, 4, 4],
     [0, 1, 2],
+    [4, 3, 2],
+    [0, 2, 4],
+    [4, 2, 0],
+    [1, 2, 3],
+    [3, 2, 1],
     [2, 1, 0],
+    [2, 3, 4],
   ];
 
-  const State = { IDLE: 0, ACCELERATING: 1, SPINNING: 2, STOPPING: 3, BOUNCING: 4, STOPPED: 5 };
+  const State = { IDLE: 0, ACCELERATING: 1, SPINNING: 2, STOPPING: 3, STOPPED: 5 };
 
   // ===== 変数 =====
   let items = [];
@@ -66,6 +83,8 @@
   const slotMachineEl = document.getElementById('slot-machine');
   const modalResultEl = document.getElementById('modal-result');
   const modalCloseEl = document.getElementById('modal-close');
+  const stopBtnsContainer = document.getElementById('reel-stop-buttons');
+  const stopBtns = stopBtnsContainer ? Array.from(stopBtnsContainer.querySelectorAll('.reel-stop-btn')) : [];
 
   // ===== SoundEngine =====
   const soundEngine = {
@@ -291,7 +310,22 @@
   });
   startBtn.addEventListener('click', start);
   resetBtnEl.addEventListener('click', resetWonStatus);
+  stopBtns.forEach((btn, i) => {
+    btn.addEventListener('click', () => onStopButtonClick(i));
+  });
   modalCloseEl.addEventListener('click', closeModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && slotOverlayEl.classList.contains('visible')) {
+      e.preventDefault();
+      // 左から順にまだ回転中のリールを停止
+      for (let i = 0; i < reels.length; i++) {
+        if (reels[i].state === State.SPINNING || reels[i].state === State.ACCELERATING) {
+          onStopButtonClick(i);
+          break;
+        }
+      }
+    }
+  });
   if (reducedMotionQuery) {
     if (typeof reducedMotionQuery.addEventListener === 'function') {
       reducedMotionQuery.addEventListener('change', handleReducedMotionChange);
@@ -328,18 +362,56 @@
     renderItemList();
     itemInputEl.value = '';
     itemInputEl.focus();
+
+    // 新規アイテム追加アニメーション
+    const newItem = itemListEl.lastElementChild;
+    if (newItem && !prefersReducedMotion) {
+      gsap.fromTo(newItem,
+        { opacity: 0, scale: 0.8, y: 10 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: "back.out(1.7)" }
+      );
+    }
   }
 
   function removeItem(index) {
-    items.splice(index, 1);
-    saveItems();
-    renderItemList();
+    if (prefersReducedMotion) {
+      items.splice(index, 1);
+      saveItems();
+      renderItemList();
+      return;
+    }
+
+    const li = itemListEl.children[index];
+    if (li) {
+      gsap.to(li, {
+        opacity: 0, scale: 0.85, y: -8,
+        duration: 0.25, ease: "power2.in",
+        onComplete: () => {
+          items.splice(index, 1);
+          saveItems();
+          renderItemList();
+        },
+      });
+    } else {
+      items.splice(index, 1);
+      saveItems();
+      renderItemList();
+    }
   }
 
   function resetWonStatus() {
     items.forEach((item) => (item.won = false));
     saveItems();
     renderItemList();
+
+    // リセットアニメーション
+    if (!prefersReducedMotion) {
+      const itemRows = itemListEl.querySelectorAll('.item-row');
+      gsap.fromTo(itemRows,
+        { opacity: 0, y: 10, scale: 0.92 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.3, stagger: 0.03, ease: "power2.out" }
+      );
+    }
   }
 
   function renderItemList() {
@@ -392,7 +464,7 @@
   }
 
   function getVisibleItems() {
-    return Math.max(1, Math.round(readCssVariablePx('--visible-items', 3)));
+    return Math.max(1, Math.round(readCssVariablePx('--visible-items', 5)));
   }
 
   function clearWinOverlays() {
@@ -408,13 +480,6 @@
     if (itemCount >= 24) return 14;
     if (itemCount >= 12) return 18;
     return BASE_REPEATS;
-  }
-
-  function getBounceAmount() {
-    if (prefersReducedMotion) {
-      return Math.max(5, Math.round(layout.itemHeight * 0.08));
-    }
-    return Math.max(DEFAULT_BOUNCE_AMOUNT, Math.round(layout.itemHeight * 0.15));
   }
 
   // ===== Fisher-Yatesシャッフル =====
@@ -494,20 +559,11 @@
     return t * t;
   }
 
-  function easeOutCubic(t) {
-    return 1 - Math.pow(1 - t, 3);
-  }
-
-  function easeOutWithSlow(t) {
-    if (t < 0.7) {
-      return 0.85 * easeOutCubic(t / 0.7);
-    } else if (t < 0.85) {
-      const localT = (t - 0.7) / 0.15;
-      return 0.85 + 0.1 * localT;
-    } else {
-      const localT = (t - 0.85) / 0.15;
-      return 0.95 + 0.05 * easeOutCubic(localT);
-    }
+  // C¹連続な減速曲線: easeOutQuart — f(t)=1-(1-t)⁴, f'(0)=4.0, f'(1)=0
+  // 導関数が全区間で連続するため、停止前の不自然な速度ジャンプが起きない
+  function easeOutSmooth(t) {
+    const u = 1 - t;
+    return 1 - u * u * u * u;
   }
 
   // ===== 当選ライン選択 =====
@@ -555,11 +611,19 @@
 
     startBtn.disabled = true;
     modalResultEl.textContent = '';
-    modalResultEl.classList.remove('flash', 'win-reveal');
+    gsap.killTweensOf([modalResultEl, modalCloseEl, slotMachineEl]);
+    gsap.set(modalResultEl, { clearProps: "all" });
+    gsap.set(modalCloseEl, { clearProps: "all" });
     modalCloseEl.classList.remove('visible');
     slotOverlayEl.classList.add('visible');
     document.body.style.overflow = 'hidden';
     slotOverlayEl.classList.remove('win-celebration');
+
+    // モーダル入場アニメーション (GSAP)
+    gsap.fromTo(slotMachineEl,
+      { scale: 0.85, y: 30, opacity: 0 },
+      { scale: 1, y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.7)", delay: 0.05 }
+    );
 
     clearWinOverlays();
     const oldFlash = document.querySelector('.screen-flash');
@@ -570,9 +634,21 @@
 
     const slotFrame = document.querySelector('.slot-frame');
     slotFrame.classList.remove('reach', 'reach-genuine');
+    document.querySelectorAll('.reach-target').forEach((el) => el.classList.remove('reach-target'));
     if (!prefersReducedMotion) {
-      slotFrame.classList.add('starting');
-      setTimeout(() => slotFrame.classList.remove('starting'), 300);
+      gsap.fromTo(slotFrame,
+        { x: 0, y: 0, rotation: 0 },
+        {
+          keyframes: [
+            { x: -2, y: 1, rotation: -0.2, duration: 0.085 },
+            { x: 2, y: -1, rotation: 0.2, duration: 0.085 },
+            { x: -1, y: 2, rotation: -0.15, duration: 0.085 },
+            { x: 0, y: 0, rotation: 0, duration: 0.085 },
+          ],
+          ease: "power2.out",
+          clearProps: "x,y,rotation",
+        }
+      );
     }
 
     soundEngine.init();
@@ -587,10 +663,14 @@
     reelStopTimers.forEach((t) => clearTimeout(t));
     reelStopTimers = [];
 
-    reelStopTimers.push(setTimeout(() => triggerStop(0), STOP_DELAYS[0]));
-    reelStopTimers.push(setTimeout(() => triggerStop(1), STOP_DELAYS[1]));
-    // 3つ目のリールはリーチ判定後に動的に設定するため、初期タイマーも設定
-    reelStopTimers.push(setTimeout(() => triggerStop(2), STOP_DELAYS[2]));
+    // ストップボタンを有効化
+    stopBtns.forEach((btn) => { btn.disabled = false; });
+    if (stopBtnsContainer) stopBtnsContainer.classList.add('active');
+
+    // 自動停止タイマー（フォールバック）
+    reelStopTimers.push(setTimeout(() => triggerStop(0), AUTO_STOP_DELAYS[0]));
+    reelStopTimers.push(setTimeout(() => triggerStop(1), AUTO_STOP_DELAYS[1]));
+    reelStopTimers.push(setTimeout(() => triggerStop(2), AUTO_STOP_DELAYS[2]));
   }
 
   // ===== リール初期化 =====
@@ -602,7 +682,10 @@
       const order = reelOrders[r];
 
       stripEl.innerHTML = '';
-      stripEl.classList.remove('spinning', 'blur-light');
+      stripEl.classList.remove('spinning');
+      stripEl.style.filter = 'none';
+      gsap.killTweensOf(stripEl);
+      gsap.set(stripEl, { clearProps: 'transform' });
       for (let rep = 0; rep < reelRepeats; rep++) {
         for (let c = 0; c < order.length; c++) {
           const itemEl = document.createElement('div');
@@ -629,6 +712,7 @@
         accelStartTime: performance.now(),
         reelIndex: r,
         repeatCount: reelRepeats,
+        blurTween: null,
       };
 
       applyTransform(reel);
@@ -653,9 +737,6 @@
           break;
         case State.STOPPING:
           updateStopping(reel, timestamp);
-          break;
-        case State.BOUNCING:
-          updateBouncing(reel, timestamp);
           break;
       }
     }
@@ -707,15 +788,26 @@
     }
 
     reel.stripEl.classList.remove('spinning');
-    reel.stripEl.classList.add('blur-light');
+
+    // ストップボタンを無効化
+    if (stopBtns[reelIndex]) stopBtns[reelIndex].disabled = true;
+
+    // リーチ時のリール判定
+    const othersSettled = reels.filter((r, i) =>
+      i !== reelIndex && (r.state === State.STOPPED || r.state === State.STOPPING)
+    ).length;
+    const isReachTarget = isReach && othersSettled === 2;
 
     const currentPos = reel.position;
-    const basePos = calculateStopPosition(currentPos, reelWinnerIdx[reelIndex], choices.length);
-    const targetRow = winningLine[reelIndex];
-    const rowOffset = (targetRow - CENTER_OFFSET) * layout.itemHeight;
-    const endPos = basePos + rowOffset;
+    const endPos = calculateStopPosition(
+      currentPos, reelWinnerIdx[reelIndex], choices.length, winningLine[reelIndex], isReachTarget
+    );
 
-    let duration = isReach && reelIndex === 2 ? REACH_STOP_DURATION : STOP_DURATION;
+    // 距離に基づいて自然な減速時間を算出（初速=SPIN_SPEEDに常に一致）
+    const distance = currentPos - endPos;
+    let duration = (distance * EASE_DERIV_AT_0 / SPIN_SPEED) * 1000;
+
+    duration = Math.max(MIN_STOP_DURATION, Math.min(duration, MAX_STOP_DURATION));
     if (prefersReducedMotion) duration = Math.min(duration, 1200);
 
     reel.stopAnim = {
@@ -723,55 +815,83 @@
       endPos: endPos,
       startTime: performance.now(),
       duration: duration,
-      bounceStartTime: 0,
     };
     reel.state = State.STOPPING;
+
+    // CSSブラーをGSAPで同期（位置の減速と視覚的クリアネスを連動）
+    if (reel.blurTween) reel.blurTween.kill();
+    const blurObj = { value: 1.8 };
+    reel.blurTween = gsap.to(blurObj, {
+      value: 0,
+      duration: duration / 1000 * 0.85,
+      ease: 'power2.out',
+      onUpdate: () => {
+        reel.stripEl.style.filter = blurObj.value > 0.1
+          ? `blur(${blurObj.value}px)` : 'none';
+      },
+    });
   }
 
-  function calculateStopPosition(currentPos, winner, choicesLen) {
-    const currentCenterFloat = CENTER_OFFSET - currentPos / layout.itemHeight;
-    let nextK = Math.ceil((currentCenterFloat - winner) / choicesLen);
-    if (nextK < 0) nextK = 0;
-    const finalK = nextK + EXTRA_ROTATIONS;
-    const targetStripIndex = winner + finalK * choicesLen;
-    return -(targetStripIndex - CENTER_OFFSET) * layout.itemHeight;
+  function calculateStopPosition(currentPos, winner, choicesLen, targetRow, isReachTarget) {
+    const itemH = layout.itemHeight;
+    const oneSetLen = choicesLen * itemH;
+    const rowOffset = (targetRow - CENTER_OFFSET) * itemH;
+    // リーチ対象リールは停止距離を増やすことで自然な初速のまま長時間回す
+    const baseDuration = isReachTarget ? REACH_MIN_DURATION : MIN_STOP_DURATION;
+    const minDistance = SPIN_SPEED * (baseDuration / 1000) / EASE_DERIV_AT_0;
+
+    const fixedPart = currentPos + (winner - CENTER_OFFSET) * itemH - rowOffset;
+    let k = Math.ceil((minDistance - fixedPart) / oneSetLen);
+    if (k < 1) k = 1;
+
+    return -(winner + k * choicesLen - CENTER_OFFSET) * itemH + rowOffset;
   }
 
   function updateStopping(reel, now) {
     const a = reel.stopAnim;
     const elapsed = now - a.startTime;
     const t = Math.min(elapsed / a.duration, 1.0);
-    const easedT = easeOutWithSlow(t);
+    const easedT = easeOutSmooth(t);
     reel.position = a.startPos + (a.endPos - a.startPos) * easedT;
     applyTransform(reel);
 
     if (t >= 1.0) {
       reel.position = a.endPos;
       applyTransform(reel);
-      a.bounceStartTime = now;
-      reel.state = State.BOUNCING;
-    }
-  }
-
-  function updateBouncing(reel, now) {
-    const a = reel.stopAnim;
-    const elapsed = now - a.bounceStartTime;
-    const t = Math.min(elapsed / BOUNCE_DURATION, 1.0);
-    const bounce = Math.sin(t * Math.PI) * getBounceAmount();
-    reel.position = a.endPos - bounce;
-    applyTransform(reel);
-
-    if (t >= 1.0) {
-      reel.position = a.endPos;
-      applyTransform(reel);
       reel.state = State.STOPPED;
-      reel.stripEl.classList.remove('blur-light');
-      onReelStopped(reel.reelIndex);
+      reel.stripEl.style.filter = 'none';
+      if (reel.blurTween) { reel.blurTween.kill(); reel.blurTween = null; }
+
+      // GSAP バウンス（自然なオーバーシュート）
+      // endPos を基準に絶対座標で指定（y:0 にすると applyTransform の translateY が上書きされるため）
+      if (!prefersReducedMotion) {
+        const bounceAmt = Math.max(6, Math.round(layout.itemHeight * 0.16));
+        const endY = reel.position;
+        gsap.fromTo(reel.stripEl,
+          { y: endY - bounceAmt, yPercent: 0 },
+          {
+            y: endY,
+            yPercent: 0,
+            duration: GSAP_BOUNCE_DURATION,
+            ease: 'bounce.out',
+            onComplete: () => onReelStopped(reel.reelIndex),
+          }
+        );
+      } else {
+        onReelStopped(reel.reelIndex);
+      }
     }
   }
 
   function applyTransform(reel) {
     reel.stripEl.style.transform = `translateY(${reel.position}px)`;
+  }
+
+  function onStopButtonClick(reelIndex) {
+    const reel = reels[reelIndex];
+    if (!reel || (reel.state !== State.SPINNING && reel.state !== State.ACCELERATING)) return;
+    clearTimeout(reelStopTimers[reelIndex]);
+    triggerStop(reelIndex);
   }
 
   // ===== リール停止イベント =====
@@ -785,11 +905,11 @@
 
     const slotFrame = document.querySelector('.slot-frame');
     if (!prefersReducedMotion) {
-      // フレーム振動
-      slotFrame.classList.remove('reel-impact');
-      void slotFrame.offsetWidth; // reflow
-      slotFrame.classList.add('reel-impact');
-      setTimeout(() => slotFrame.classList.remove('reel-impact'), 150);
+      // フレーム振動 (GSAP)
+      gsap.fromTo(slotFrame,
+        { y: 0 },
+        { y: 3, duration: 0.075, yoyo: true, repeat: 1, ease: "power2.out", clearProps: "y" }
+      );
     }
 
     // 2つ目のリール停止時にリーチ判定
@@ -803,17 +923,24 @@
         slotFrame.classList.add('reach-genuine');
       }
 
+      // 回転中のリールにreach-targetクラスを追加
+      const spinningReelIdx = reels.findIndex((r) =>
+        r.state === State.SPINNING || r.state === State.ACCELERATING
+      );
+      if (spinningReelIdx >= 0) {
+        reels[spinningReelIdx].el.classList.add('reach-target');
+      }
+
       const label = document.createElement('div');
       label.className = 'reach-label';
       label.textContent = 'リーチ！';
       slotFrame.appendChild(label);
 
-      // 3つ目のリールがまだ回転中なら停止タイマーを延長
-      const reel2 = reels[2];
-      if (reel2.state === State.SPINNING || reel2.state === State.ACCELERATING) {
-        clearTimeout(reelStopTimers[2]);
+      // 回転中のリールの自動停止タイマーを延長
+      if (spinningReelIdx >= 0) {
+        clearTimeout(reelStopTimers[spinningReelIdx]);
         const reachDelay = prefersReducedMotion ? Math.min(400, REACH_EXTRA_DELAY) : REACH_EXTRA_DELAY;
-        reelStopTimers[2] = setTimeout(() => triggerStop(2), reachDelay);
+        reelStopTimers[spinningReelIdx] = setTimeout(() => triggerStop(spinningReelIdx), reachDelay);
       }
     }
 
@@ -827,13 +954,19 @@
   // ===== リーチ判定 =====
   function checkReach() {
     isReachGenuine = false;
+    const stoppedReels = [];
+    for (let i = 0; i < 3; i++) {
+      if (reels[i].state === State.STOPPED) stoppedReels.push(i);
+    }
+    if (stoppedReels.length !== 2) return false;
+
+    const [r1, r2] = stoppedReels;
     let hasReach = false;
     for (const line of WIN_LINES) {
-      const i0 = getItemAtRow(0, line[0]);
-      const i1 = getItemAtRow(1, line[1]);
-      if (i0 === i1) {
+      const item1 = getItemAtRow(r1, line[r1]);
+      const item2 = getItemAtRow(r2, line[r2]);
+      if (item1 === item2) {
         hasReach = true;
-        // 当選ラインと一致するなら本命リーチ
         if (line[0] === winningLine[0] && line[1] === winningLine[1] && line[2] === winningLine[2]) {
           isReachGenuine = true;
         }
@@ -842,45 +975,19 @@
     return hasReach;
   }
 
-  // ===== 結果表示 =====
+  // ===== 結果表示 (GSAP Timeline) =====
   function showResult() {
     const winnerName = choices[winnerIndex];
-
-    if (!prefersReducedMotion) {
-      // 画面フラッシュ
-      const flash = document.createElement('div');
-      flash.className = 'screen-flash';
-      document.body.appendChild(flash);
-      flash.addEventListener('animationend', () => flash.remove());
-
-      // 背景カラーシフト
-      slotOverlayEl.classList.add('win-celebration');
-    }
-
-    // ファンファーレ
-    soundEngine.playWinFanfare();
-
-    if (!prefersReducedMotion) {
-      // 紙吹雪
-      particleSystem = new ParticleSystem();
-      particleSystem.start(slotOverlayEl);
-    }
-
-    // 当選テキスト
-    modalResultEl.textContent = winnerName;
-    if (!prefersReducedMotion) {
-      requestAnimationFrame(() => {
-        modalResultEl.classList.add('win-reveal');
-      });
-    }
-
-    drawWinLine();
 
     // リーチ演出をクリーンアップ
     const slotFrame = document.querySelector('.slot-frame');
     slotFrame.classList.remove('reach', 'reach-genuine');
+    document.querySelectorAll('.reach-target').forEach((el) => el.classList.remove('reach-target'));
     const reachLabel = document.querySelector('.reach-label');
     if (reachLabel) reachLabel.remove();
+
+    // 当選テキスト設定
+    modalResultEl.textContent = winnerName;
 
     // 当選アイテムを当選状態に更新
     const item = items.find((i) => i.name === winnerName && !i.won);
@@ -894,23 +1001,96 @@
     const remainingItems = items.filter((i) => !i.won);
     const isAllDone = remainingItems.length === 0;
 
-    if (isAllDone) {
-      // 全抽選完了時: 結果テキスト表示後に完了メッセージを追加
-      setTimeout(() => {
+    // ファンファーレ
+    soundEngine.playWinFanfare();
+
+    if (prefersReducedMotion) {
+      drawWinLine();
+      modalCloseEl.classList.add('visible');
+      if (isAllDone) {
         const completeMsg = document.createElement('div');
         completeMsg.className = 'complete-message';
         completeMsg.textContent = '全て抽選完了！';
         modalResultEl.parentNode.insertBefore(completeMsg, modalResultEl.nextSibling);
-      }, 2500);
+      }
+      return;
     }
 
-    // 閉じるボタンを表示
-    setTimeout(() => {
+    // ===== GSAP タイムライン演出 =====
+    const tl = gsap.timeline();
+
+    // 画面フラッシュ
+    const flash = document.createElement('div');
+    flash.className = 'screen-flash';
+    document.body.appendChild(flash);
+    tl.fromTo(flash,
+      { opacity: 0.85 },
+      { opacity: 0, duration: 0.52, ease: "power2.out", onComplete: () => flash.remove() },
+      0
+    );
+
+    // 背景カラーシフト
+    slotOverlayEl.classList.add('win-celebration');
+
+    // 紙吹雪
+    tl.call(() => {
+      particleSystem = new ParticleSystem();
+      particleSystem.start(slotOverlayEl);
+    }, null, 0.08);
+
+    // 当選テキスト演出 (elastic.out でバウンス)
+    gsap.set(modalResultEl, { opacity: 0, scale: 0.3 });
+    tl.to(modalResultEl,
+      { scale: 1, opacity: 1, duration: 1.4, ease: "elastic.out(1.1, 0.5)" },
+      0.12
+    );
+
+    // 当選ライン描画
+    tl.call(() => drawWinLine(), null, 0.35);
+
+    // 完了メッセージ
+    if (isAllDone) {
+      tl.call(() => {
+        const completeMsg = document.createElement('div');
+        completeMsg.className = 'complete-message';
+        completeMsg.textContent = '全て抽選完了！';
+        modalResultEl.parentNode.insertBefore(completeMsg, modalResultEl.nextSibling);
+        gsap.fromTo(completeMsg,
+          { y: 10, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" }
+        );
+      }, null, 2.5);
+    }
+
+    // 閉じるボタン表示
+    const closeDelay = isAllDone ? 2.0 : 1.5;
+    tl.call(() => {
       modalCloseEl.classList.add('visible');
-    }, isAllDone ? 2000 : 1500);
+      gsap.fromTo(modalCloseEl,
+        { opacity: 0, y: 8 },
+        { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }
+      );
+    }, null, closeDelay);
   }
 
   function closeModal() {
+    // 実行中のGSAPアニメーションをキル
+    gsap.killTweensOf([slotMachineEl, modalResultEl, modalCloseEl]);
+
+    if (prefersReducedMotion) {
+      doCloseCleanup();
+      return;
+    }
+
+    // GSAP モーダル退場アニメーション
+    gsap.to(slotMachineEl, {
+      scale: 0.9, opacity: 0, y: 20,
+      duration: 0.3, ease: "power3.in",
+      onComplete: doCloseCleanup,
+    });
+  }
+
+  function doCloseCleanup() {
     slotOverlayEl.classList.remove('visible', 'win-celebration', 'spinning-active');
     modalCloseEl.classList.remove('visible');
     document.body.style.overflow = '';
@@ -918,8 +1098,21 @@
     if (particleSystem) particleSystem.stop();
     const completeMsg = document.querySelector('.complete-message');
     if (completeMsg) completeMsg.remove();
+    // blurTweenをクリーンアップ
+    for (const reel of reels) {
+      if (reel.blurTween) { reel.blurTween.kill(); reel.blurTween = null; }
+      reel.stripEl.style.filter = 'none';
+      gsap.killTweensOf(reel.stripEl);
+    }
+    // ストップボタンをリセット
+    if (stopBtnsContainer) stopBtnsContainer.classList.remove('active');
+    stopBtns.forEach((btn) => { btn.disabled = true; });
+    // reach-targetクラスをクリア
+    document.querySelectorAll('.reach-target').forEach((el) => el.classList.remove('reach-target'));
     startBtn.disabled = false;
     updateStartButton();
+    // GSAPインラインスタイルをクリア
+    gsap.set([slotMachineEl, modalResultEl, modalCloseEl], { clearProps: "all" });
   }
 
   // ===== 当選ラインSVG =====
@@ -937,7 +1130,7 @@
     const cellLayer = document.createElement('div');
     cellLayer.classList.add('win-cell-layer');
 
-    const points = reelWindows.map((reelWindow, i) => {
+    const cellData = reelWindows.map((reelWindow, i) => {
       const reelRect = reelWindow.getBoundingClientRect();
       const reelStyle = getComputedStyle(reelWindow);
       const borderTop = Number.parseFloat(reelStyle.borderTopWidth) || 0;
@@ -959,31 +1152,96 @@
       cellBox.style.height = `${height}px`;
       cellLayer.appendChild(cellBox);
 
-      const x = left + width / 2;
-      const y = top + height / 2;
-      return `${x},${y}`;
+      return { left, top, width, height, cy: top + height / 2 };
     });
 
     container.appendChild(cellLayer);
 
+    // SVG: リール間ギャップにのみコネクタ線を描画（セル上の文字を隠さない）
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.classList.add('win-line-svg');
     svg.setAttribute('viewBox', `0 0 ${containerRect.width} ${containerRect.height}`);
 
-    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    polyline.setAttribute('points', points.join(' '));
-    polyline.classList.add('win-line');
-    svg.appendChild(polyline);
+    // 左端マーカー（右向き三角）
+    const mkSize = 7;
+    const lx = cellData[0].left - 3;
+    const ly = cellData[0].cy;
+    const leftMarker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    leftMarker.setAttribute('points',
+      `${lx - mkSize},${ly - mkSize} ${lx},${ly} ${lx - mkSize},${ly + mkSize}`);
+    leftMarker.classList.add('win-marker');
+    svg.appendChild(leftMarker);
+
+    // 右端マーカー（左向き三角）
+    const rx = cellData[2].left + cellData[2].width + 3;
+    const ry = cellData[2].cy;
+    const rightMarker = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    rightMarker.setAttribute('points',
+      `${rx + mkSize},${ry - mkSize} ${rx},${ry} ${rx + mkSize},${ry + mkSize}`);
+    rightMarker.classList.add('win-marker');
+    svg.appendChild(rightMarker);
+
+    // 左マーカー→リール0 左端
+    const segments = [
+      [lx, ly, cellData[0].left, cellData[0].cy],
+    ];
+    // リール間ギャップコネクタ
+    for (let g = 0; g < 2; g++) {
+      segments.push([
+        cellData[g].left + cellData[g].width, cellData[g].cy,
+        cellData[g + 1].left, cellData[g + 1].cy,
+      ]);
+    }
+    // リール2 右端→右マーカー
+    segments.push([
+      cellData[2].left + cellData[2].width, cellData[2].cy,
+      rx, ry,
+    ]);
+
+    for (const [x1, y1, x2, y2] of segments) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.classList.add('win-connector');
+      svg.appendChild(line);
+    }
 
     container.appendChild(svg);
 
-    requestAnimationFrame(() => {
+    if (prefersReducedMotion) {
       cellLayer.classList.add('show');
-      polyline.classList.add('show');
-    });
+      svg.classList.add('show');
+      return;
+    }
+
+    // GSAP スタガー演出
+    const cellBoxes = cellLayer.querySelectorAll('.win-cell-box');
+    gsap.fromTo(cellBoxes,
+      { opacity: 0, scale: 0.8 },
+      {
+        opacity: 1, scale: 1,
+        duration: 0.35,
+        stagger: 0.12,
+        ease: "back.out(2.5)",
+        onComplete: () => cellLayer.classList.add('show'),
+      }
+    );
+    gsap.delayedCall(0.5, () => svg.classList.add('show'));
   }
 
-  // ===== 初期化 =====
-  refreshLayoutMetrics();
-  loadItems();
-})();
+// ===== 初期化 =====
+refreshLayoutMetrics();
+loadItems();
+
+// 初回ロード時のアイテムスタガーアニメーション
+if (!prefersReducedMotion) {
+  const initialItems = itemListEl.querySelectorAll('.item-row');
+  if (initialItems.length > 0) {
+    gsap.fromTo(initialItems,
+      { opacity: 0, y: 15, scale: 0.9 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.35, stagger: 0.04, ease: "power2.out" }
+    );
+  }
+}
