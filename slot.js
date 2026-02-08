@@ -806,9 +806,10 @@ import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.7/index.js';
     const isReachTarget = isReach && othersSettled === 2;
 
     const currentPos = reel.position;
-    const endPos = calculateStopPosition(
+    const rawEndPos = calculateStopPosition(
       currentPos, reelWinnerIdx[reelIndex], choices.length, winningLine[reelIndex], isReachTarget
     );
+    const endPos = normalizeReelPosition(rawEndPos, reel.repeatCount);
 
     // 距離に基づいて自然な減速時間を算出（初速=SPIN_SPEEDに常に一致）
     const distance = currentPos - endPos;
@@ -852,6 +853,19 @@ import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.7/index.js';
     if (k < 1) k = 1;
 
     return -(winner + k * choicesLen - CENTER_OFFSET) * itemH + rowOffset;
+  }
+
+  function normalizeReelPosition(position, repeatCount) {
+    const oneSetLen = choices.length * layout.itemHeight;
+    const visibleLen = getVisibleItems() * layout.itemHeight;
+    const stripLen = oneSetLen * repeatCount;
+    const minPos = -(stripLen - visibleLen);
+    let normalized = position;
+
+    while (normalized < minPos) normalized += oneSetLen;
+    while (normalized > 0) normalized -= oneSetLen;
+
+    return normalized;
   }
 
   function updateStopping(reel, now) {
